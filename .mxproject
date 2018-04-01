@@ -1,7 +1,7 @@
 [PreviousGenFiles]
-HeaderPath=C:/keil workspace/usb-uart/Inc
+HeaderPath=C:/keil workspace/sd_spi-git/Inc
 HeaderFiles=usb_device.h;usbd_conf.h;usbd_desc.h;usbd_cdc_if.h;stm32f1xx_it.h;stm32f1xx_hal_conf.h;main.h;gpio.h;usart.h;ffconf.h;user_diskio.h;fatfs.h;
-SourcePath=C:/keil workspace/usb-uart/Src
+SourcePath=C:/keil workspace/sd_spi-git/Src
 SourceFiles=usb_device.h;usbd_conf.h;usbd_desc.h;usbd_cdc_if.h;stm32f1xx_it.h;stm32f1xx_hal_conf.h;main.h;usb_device.c;usbd_conf.c;usbd_desc.c;usbd_cdc_if.c;stm32f1xx_it.c;stm32f1xx_hal_msp.c;main.c;gpio.h;usart.h;gpio.c;usart.c;ffconf.h;user_diskio.h;fatfs.h;user_diskio.c;fatfs.c;
 
 [PreviousLibFiles]

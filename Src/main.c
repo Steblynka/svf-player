@@ -67,16 +67,16 @@ UART_HandleTypeDef huart1;
 /* Private variables ---------------------------------------------------------*/
 uint8_t Byte1=0;
 volatile uint16_t Timer1=0;
-uint8_t sect[512];//для сохранения бйтов из блока
+//uint8_t sect[512];//для сохранения бйтов из блока
 uint8_t Buf[] = "test";
 char buffer1[] ="random data 1234567890"; //Буфер данных для записи/чтения
 extern char str1[60];
-uint32_t byteswritten,bytesread;
-uint8_t result;
+//uint32_t byteswritten,bytesread;
+//uint8_t result;
 extern char USER_Path[4]; /* logical drive path */
 FATFS SDFatFs;
-FATFS *fs;
-FIL MyFile;
+//FATFS *fs;
+//FIL MyFile;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -92,148 +92,29 @@ static void MX_SPI1_Init(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
-FRESULT ReadLongFile(void)
-{
-  uint16_t i=0, i1=0;
-  uint32_t ind=0;
-  uint32_t f_size = MyFile.fsize;
- // sprintf(str1,"fsize: %lu\r\n",(unsigned long)f_size);
- //HAL_UART_Transmit(&huart1,(uint8_t*)str1,strlen(str1),0x1000);
-	//CDC_Transmit_FS((uint8_t*)str1,strlen(str1));
-  ind=0;
-  do
-  {
-    if(f_size<512)
-    {
-      i1=f_size;
-    }
-    else
-    {
-      i1=512;
-    }
-    f_size-=i1;
-    f_lseek(&MyFile,ind);
-    f_read(&MyFile,sect,i1,(UINT *)&bytesread);
-// sprintf(str1,"bytes read: %lu\r\n",(unsigned long)bytesread);
- // 	CDC_Transmit_FS((uint8_t*)str1,strlen(str1));
-		CDC_Transmit_FS((uint8_t*)sect,bytesread-1);
-		
-   
-    ind+=i1;
-  }
-  while(f_size>0);
-  CDC_Transmit_FS((uint8_t*)"\r\n",2);
-  return FR_OK;
-}
-
-
-void read1(TCHAR* path){
-		if(f_mount(&SDFatFs,(TCHAR const*)USER_Path,0)!=FR_OK)
+void bitOutput(unsigned int a) {
+	for (int i = 0; i < 32; i++)
 	{
-		//CDC_Transmit_FS((uint8_t*)" err1", 5); 
-		Error_Handler();
-	}
-	else
-	{
-		
-		if(f_open(&MyFile,path,FA_READ)!=FR_OK)
-		{
-			//CDC_Transmit_FS((uint8_t*)" err2", 5); 
-			Error_Handler();
-		}
+		//Проверяем старший бит)
+		if (a & 0x80000000)
+			CDC_Transmit_FS((uint8_t*)"1",1);
 		else
-		{
-		//	CDC_Transmit_FS((uint8_t*)" rlf ", 5); 
-			ReadLongFile();
-			f_close(&MyFile);
-		}
+			CDC_Transmit_FS((uint8_t*)"0",1);
+		//Сдвигаем влево на 1 бит
+		a = a << 1;
 	}
-}
-
-void write_f1(TCHAR* path,TCHAR* wtext, UINT buf_size){
-	FRESULT res;
-		if(f_mount(&SDFatFs,(TCHAR const*)USER_Path,0)!=FR_OK)
-	{
-		Error_Handler();
-	}
-	else
-	{
-	
-		if(f_open(&MyFile,path,FA_CREATE_ALWAYS|FA_WRITE)!=FR_OK)
-		{
-			Error_Handler();
-		}
-		else
-		{
-			res=f_write(&MyFile,wtext,buf_size,(void*)&byteswritten);
-			if((byteswritten==0)||(res!=FR_OK))
-			{
-				Error_Handler();
-			}
-			f_close(&MyFile);
-		}
-	}
-}
+};
 
 
-		void read_dir(FILINFO fileInfo,DIR dir){
-			char *fn;
-			DWORD fre_clust, fre_sect, tot_sect;
-	if(f_mount(&SDFatFs,(TCHAR const*)USER_Path,0)!=FR_OK)
-	{
-		Error_Handler();
-	}
-	else
-	{
-		fileInfo.lfname = (char*)sect;
-		fileInfo.lfsize = sizeof(sect);
-		result = f_opendir(&dir, "/");
-		if (result == FR_OK)
-		{
-			while(1)
-			{
-				result = f_readdir(&dir, &fileInfo);
-				if (result==FR_OK && fileInfo.fname[0])
-				{
-					fn = fileInfo.lfname;
-					if(strlen(fn)) CDC_Transmit_FS((uint8_t*)fn,strlen(fn));
-					else CDC_Transmit_FS((uint8_t*)fileInfo.fname,strlen((char*)fileInfo.fname));
-					if(fileInfo.fattrib&AM_DIR)
-					{
-						CDC_Transmit_FS((uint8_t*)"  [DIR]",7);
-					}					
-				}
-				else break;
-			CDC_Transmit_FS((uint8_t*)"\r\n",2);
-			}
-			f_closedir(&dir);
-		}
-	}
-	f_getfree("/", &fre_clust, &fs);
-	sprintf(str1,"fre_clust: %lu\r\n",fre_clust);
-	CDC_Transmit_FS((uint8_t*)str1,strlen(str1));
-	sprintf(str1,"n_fatent: %lu\r\n",fs->n_fatent);
-	CDC_Transmit_FS((uint8_t*)str1,strlen(str1));
-	sprintf(str1,"fs_csize: %d\r\n",fs->csize);
-	CDC_Transmit_FS((uint8_t*)str1,strlen(str1));
-	tot_sect = (fs->n_fatent - 2) * fs->csize;
-	sprintf(str1,"tot_sect: %lu\r\n",tot_sect);
-	CDC_Transmit_FS((uint8_t*)str1,strlen(str1));
-	fre_sect = fre_clust * fs->csize;
-	sprintf(str1,"fre_sect: %lu\r\n",fre_sect);
-	CDC_Transmit_FS((uint8_t*)str1,strlen(str1));
-	sprintf(str1, "%lu KB total drive space.\r\n%lu KB available.\r\n",
-	fre_sect/2, tot_sect/2);
-	CDC_Transmit_FS((uint8_t*)str1,strlen(str1)); 
-		}
 /* USER CODE END 0 */
 
 int main(void)
 {
+
   /* USER CODE BEGIN 1 */
 	uint16_t i;
 	FRESULT res; //результат выполнения
-	uint8_t wtext[]="12345678900987654321aaaaaaaaaaaa.";
+	uint8_t wtext[]="The first form of PIOMAP defines the I/O direction and logical name for each column, in the order the vector characters appear in the PIO statement. The first logical_name corresponds to the first character of the vector_string in PIO statements; the second logical_name corresponds to the second character of the vector_string; and so forth";
 	FILINFO fileInfo;
 	char *fn;
 	DIR dir;
@@ -269,84 +150,28 @@ int main(void)
 	HAL_Delay(5000);
 	HAL_UART_Receive_IT(&huart1, &Byte1, 1);
 	//запустмим таймер
-	HAL_TIM_Base_Start_IT(&htim2);
-	
-	
+//	HAL_TIM_Base_Start_IT(&htim2);
+//	
+//	
+// CDC_Transmit_FS((uint8_t*)"\r\nsd init\r\n",11);
+//disk_initialize(SDFatFs.drv);
+//	CDC_Transmit_FS((uint8_t*)"\r\nwrite\r\n", 9); 
+//write_f1("mywrite3.txt", wtext, sizeof(wtext));	
 
-disk_initialize(SDFatFs.drv);
-//read_dir( fileInfo, dir);	
-/*
-if(f_mount(&SDFatFs,(TCHAR const*)USER_Path,0)!=FR_OK)
-	{
-		Error_Handler();
-	}
-	else
-	{
-		fileInfo.lfname = (char*)sect;
-		fileInfo.lfsize = sizeof(sect);
-		result = f_opendir(&dir, "/");
-		if (result == FR_OK)
-		{
-			while(1)
-			{
-				result = f_readdir(&dir, &fileInfo);
-				if (result==FR_OK && fileInfo.fname[0])
-				{
-					fn = fileInfo.lfname;
-					if(strlen(fn)) CDC_Transmit_FS((uint8_t*)fn,strlen(fn));
-					else CDC_Transmit_FS((uint8_t*)fileInfo.fname,strlen((char*)fileInfo.fname));
-						CDC_Transmit_FS((uint8_t*)"\r\n",2);
-					if(fileInfo.fattrib&AM_DIR)
-					{
-						CDC_Transmit_FS((uint8_t*)"  [DIR]",7);
-						CDC_Transmit_FS((uint8_t*)"\r\n",2);
-					}					
-				}
-				else break;
-			CDC_Transmit_FS((uint8_t*)"\r\n",2);
-			}
-			f_closedir(&dir);
-		}
-	}
-	f_getfree("/", &fre_clust, &fs);
-	sprintf(str1,"fre_clust: %lu\r\n",fre_clust);
-	CDC_Transmit_FS((uint8_t*)str1,strlen(str1));
-	sprintf(str1,"n_fatent: %lu\r\n",fs->n_fatent);
-	CDC_Transmit_FS((uint8_t*)str1,strlen(str1));
-	sprintf(str1,"fs_csize: %d\r\n",fs->csize);
-	CDC_Transmit_FS((uint8_t*)str1,strlen(str1));
-	tot_sect = (fs->n_fatent - 2) * fs->csize;
-	sprintf(str1,"tot_sect: %lu\r\n",tot_sect);
-	CDC_Transmit_FS((uint8_t*)str1,strlen(str1));
-	fre_sect = fre_clust * fs->csize;
-	sprintf(str1,"fre_sect: %lu\r\n",fre_sect);
-	CDC_Transmit_FS((uint8_t*)str1,strlen(str1));
-	sprintf(str1, "%lu KB total drive space.\r\n%lu KB available.\r\n",
-	fre_sect/2, tot_sect/2);
-	CDC_Transmit_FS((uint8_t*)str1,strlen(str1)); 
-	*/
-read1("123.txt");
-read1("/Download/mywrite2.txt");
-write_f1("/Download/mywrite3.txt", wtext, sizeof(wtext));
-	
-read1("/Download/mywrite3.txt");
-	
-	
-	
-	
-	
-	
-FATFS_UnLinkDriver(USER_Path);
+//	CDC_Transmit_FS((uint8_t*)"\r\nread\r\n", 8); 
+//read1("mywrite3.txt");
+//	
+//FATFS_UnLinkDriver(USER_Path);
 
-	
-	/* USER CODE END 2 */
+
+  /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-		CDC_Transmit_FS((uint8_t*)"LOOP\n", 5); 
-	
+		//CDC_Transmit_FS((uint8_t*)"LOOP\n", 5); 
+	bitOutput(11);	
 		HAL_Delay(10000);
 		
   /* USER CODE END WHILE */
@@ -505,17 +330,21 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(SPI_CS_GPIO_Port, SPI_CS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, SPI_CS_Pin|TRST_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, TDO_Pin|TMS_Pin|TCK_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pin : SPI_CS_Pin */
@@ -523,6 +352,30 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
   HAL_GPIO_Init(SPI_CS_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : TDO_Pin */
+  GPIO_InitStruct.Pin = TDO_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_MEDIUM;
+  HAL_GPIO_Init(TDO_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : TDI_Pin */
+  GPIO_InitStruct.Pin = TDI_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(TDI_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : TMS_Pin TCK_Pin */
+  GPIO_InitStruct.Pin = TMS_Pin|TCK_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : TRST_Pin */
+  GPIO_InitStruct.Pin = TRST_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(TRST_GPIO_Port, &GPIO_InitStruct);
 
 }
 
@@ -557,6 +410,7 @@ void _Error_Handler(char * file, int line)
   /* User can add his own implementation to report the HAL error return state */
   while(1) 
   {
+		break;
   }
   /* USER CODE END Error_Handler_Debug */ 
 }

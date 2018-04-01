@@ -32,6 +32,8 @@
 "usb-uart\fatfs.o"
 "usb-uart\user_diskio.o"
 "usb-uart\sd.o"
+"usb-uart\read-write.o"
+"usb-uart\tap-ctrl.o"
 "usb-uart\system_stm32f1xx.o"
 "usb-uart\syscall.o"
 "usb-uart\diskio.o"

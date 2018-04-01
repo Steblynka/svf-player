@@ -58,6 +58,16 @@
 
 #define SPI_CS_Pin GPIO_PIN_3
 #define SPI_CS_GPIO_Port GPIOA
+#define TDO_Pin GPIO_PIN_12
+#define TDO_GPIO_Port GPIOB
+#define TDI_Pin GPIO_PIN_13
+#define TDI_GPIO_Port GPIOB
+#define TMS_Pin GPIO_PIN_14
+#define TMS_GPIO_Port GPIOB
+#define TCK_Pin GPIO_PIN_15
+#define TCK_GPIO_Port GPIOB
+#define TRST_Pin GPIO_PIN_8
+#define TRST_GPIO_Port GPIOA
 
 /* USER CODE BEGIN Private defines */
 
