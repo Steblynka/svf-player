@@ -147,21 +147,19 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
 
-	HAL_Delay(5000);
-	HAL_UART_Receive_IT(&huart1, &Byte1, 1);
-	//запустмим таймер
-//	HAL_TIM_Base_Start_IT(&htim2);
-//	
-//	
-// CDC_Transmit_FS((uint8_t*)"\r\nsd init\r\n",11);
-//disk_initialize(SDFatFs.drv);
-//	CDC_Transmit_FS((uint8_t*)"\r\nwrite\r\n", 9); 
-//write_f1("mywrite3.txt", wtext, sizeof(wtext));	
+	HAL_Delay(5000);	
+	HAL_TIM_Base_Start_IT(&htim2);
+	
+	
+ CDC_Transmit_FS((uint8_t*)"\r\nsd init\r\n",11);
+disk_initialize(SDFatFs.drv); 
 
-//	CDC_Transmit_FS((uint8_t*)"\r\nread\r\n", 8); 
-//read1("mywrite3.txt");
+	CDC_Transmit_FS((uint8_t*)"\r\nread\r\n", 8); 
+	readLine("svftarget_0.svf");
+	
+//read1("svftarget_0.svf");
 //	
-//FATFS_UnLinkDriver(USER_Path);
+FATFS_UnLinkDriver(USER_Path);
 
 
   /* USER CODE END 2 */
@@ -170,8 +168,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-		//CDC_Transmit_FS((uint8_t*)"LOOP\n", 5); 
-	bitOutput(11);	
+		CDC_Transmit_FS((uint8_t*)"LOOP\n", 5); 
+	
 		HAL_Delay(10000);
 		
   /* USER CODE END WHILE */

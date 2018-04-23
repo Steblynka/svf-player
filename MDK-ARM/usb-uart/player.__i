@@ -1,0 +1,6 @@
+-c --cpu Cortex-M3 -D__EVAL -D__MICROLIB -g -O3 --apcs=interwork --split_sections -I ../Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc -I ../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy -I ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc -I ../Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc -I ../Drivers/CMSIS/Device/ST/STM32F1xx/Include -I ../Drivers/CMSIS/Include -I ../Middlewares/Third_Party/FatFs/src --C99
+-I.\RTE\_usb-uart
+-IC:\Keil_v5\ARM\PACK\ARM\CMSIS\5.0.1\CMSIS\Include
+-IC:\Keil_v5\ARM\PACK\Keil\STM32F1xx_DFP\2.2.0\Device\Include
+-D__UVISION_VERSION="524" -D_RTE_ -DSTM32F10X_MD -DUSE_HAL_DRIVER -DSTM32F103xB
+-o usb-uart\player.o --omf_browse usb-uart\player.crf --depend usb-uart\player.d "player.c"
