@@ -31,15 +31,16 @@ FIL MyFile;
 #define TAP_STATE_UPDATE_IR 15
 
 #define MAX_STRING_LENGTH (255*4)
+#define BUF_SIZE 1024
 
 #define MIN_TCK_DELAY 100
 char wordBuf[MAX_STRING_LENGTH];
-
+//unsigned char * wordBuf;
 //#define MAX_FREQUENCY 
 int currentState = TAP_STATE_RTI, 
 	ENDIRstate= TAP_STATE_RTI,
 	ENDDRstate= TAP_STATE_RTI;
-int tckDelay = 100;
+int tckDelay = 1;
 
 //---------------------------------------------------------
 //TAP functions
@@ -54,6 +55,7 @@ void pulseTCK(){
  };
 
 void outputCharToTDI(unsigned char c) {
+			//HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nsend ch\r\n",15);
 	unsigned char mask = 128;
 	for (int i = 0; i < 8; i++)
 	{
@@ -66,29 +68,36 @@ void outputCharToTDI(unsigned char c) {
 		c = c << 1;
 		pulseTCK();
 	}
-
+//HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nend of ch\r\n",15);
 };
-void sendArray(unsigned char* ptr, unsigned int numBits) {
+void sendArray(unsigned char* ptr, unsigned int numChars) {
+	//	HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nsend array\r\n",14);
 	unsigned char c; 
-	for (unsigned int i = numBits; i > 0; i = i - 8) {
+
+	for (unsigned int i = 0; i < numChars; i++) {
+			//HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nfor begin\r\n",14);
 		c = *ptr;
 		outputCharToTDI(c);
 		ptr++;
 	}
+	//		HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nend arr\r\n",19);
 };
 
 void setTMSpath(int path[10], int steps){
+	//HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nset path\r\n",15);
+	//HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)steps,15);
 	for (int i = 0; i <= steps; i++){
 			if (path[i]==0)
 				HAL_GPIO_WritePin(GPIOB, TMS_Pin, GPIO_PIN_RESET);
 			else 
 				HAL_GPIO_WritePin(GPIOB, TMS_Pin, GPIO_PIN_SET);
 			pulseTCK();
-			
+		
 			}
-
+//HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nend path\r\n",15);
 }
 void stateNavigate(int nextState){
+	//HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nstateNavigate\r\n",25);
 	int path[10], steps = 0;
 		switch (currentState) {
 			case TAP_STATE_SHIFT_IR: 
@@ -251,8 +260,11 @@ void stateNavigate(int nextState){
 				break;
 			}break;
 		}		
-setTMSpath(path, steps);
-currentState = nextState; 			
+	//HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nset path\r\n",25);
+		setTMSpath(path, steps);
+		//	HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nset cur.state\r\n",25);
+currentState = nextState; 
+	//HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nend stateNavigate\r\n",25);		
 };
 
 void setTAPtoDRSHIFT(){
@@ -334,47 +346,61 @@ unsigned char char2hex(unsigned char c){
 		v=c-'A'+10;
 	else
 		v=0xff; //not a hex
+		//	HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nret hex\r\n ",12);
 	return v;
 }
-unsigned char* read_hex_array(unsigned char* ptr, unsigned char* pdst, unsigned int num_bits, FIL* f, unsigned int* pcount, unsigned int* presult){
-	unsigned char c,chr;
-	unsigned int len,chr_count;
-	char* pstr;
-
-	//assume we fail
-	*presult = 0;
-	
-	chr_count = 0;
-	while(num_bits>0)
-	{
+unsigned char* read_hex_array_send(unsigned char* ptr, unsigned int numBits, FIL* f, int flag){
+	//flag == 0 if operation is SDR, ==1 if SIR
+	if (flag) 
+		setTAPtoIRSHIFT();
+	else 
+		setTAPtoDRSHIFT();
+	//int bufSize = 128;
+	//int dataSize = (numBits + 7) / 4 + 8;
+	//each byte takes 2 chars in string, plus we reserve 8 additional bytes for safity
+	int c, len;
+	unsigned char bufArr[BUF_SIZE], chr;
+		char* pstr;
+	int charCount = 0;
+	while(numBits>0)	{		
+				if (charCount == BUF_SIZE) {
+			//we had read 128 chars
+			//now send them to JTAG
+			sendArray(bufArr, charCount);
+			charCount = 0;
+	//	HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\n1024 ch\r\n",10);
+		}
 		//get char from string and convert to hex digit
-		chr = *ptr;
+		while (*ptr=='(' || *ptr == ' ') ptr++;
+		chr = *ptr;			
 		c=char2hex(chr);
 		if(c!=0xFF)
 		{
-			//hexadecimal digit is correct, save it
-			*pdst++=c;
+		//	HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nchar cor\r\n",12);
+			//hexadecimal digit is correct, save it			
+			bufArr[charCount] = c	;
 			//remember that 4 bits we got
-			num_bits -= 4;
-			//go to next char
+			numBits -= 4;			
 			ptr++;
-			chr_count++;
+			charCount++;
+			
 		}
 		else
-		{
+		{			
 			//char from string is not hexadecimal, but what is this?
 			if(chr==')')
-			{
-				//end of hexadecimal array!!!
+			{				
+				//end of hexadecimal array!
 				ptr++;
 				//return SUCCESS
-				*presult = 1;
-				*pcount=chr_count;
+//				*presult = 1;
+	//			*pcount=chr_count;
 				return ptr;
 			}
 			else
 			if(chr==0 || chr==0xd || chr==0xa)
 			{
+					
 				//end of string, we need to continue by reading next string from file
 				pstr = f_gets(wordBuf,MAX_STRING_LENGTH-1,f);
 				if(pstr==NULL)
@@ -392,21 +418,112 @@ unsigned char* read_hex_array(unsigned char* ptr, unsigned char* pdst, unsigned 
 			{
 				//unexpected char, error in syntax?
 				//printf("unexpected char %02X\n",chr);
+					//HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nunexpected char\r\n",25);
 				return NULL;
 			}
 		}
+		
+	}
+	//get char from string and convert to hex digit
+	chr = *ptr++;
+	if(chr==')')//yes, we see final bracket
+	{
+		//send that we have in buffer
+		sendArray(bufArr, charCount);	
+		
+		HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nend read hex arr1\r\n",21);
+	//	*presult = 1;
+	//	*pcount=chr_count;
+		return ptr;
+	}
+	return NULL;
+}
+
+
+unsigned char* read_hex_array_save(unsigned char* ptr, unsigned char* pdest, unsigned int num_bits, FIL* f, unsigned int* pcount, unsigned int* presult){
+	unsigned char c,chr;
+	unsigned int len,chr_count;
+	char* pstr;
+//HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nread_hex_array bgn  \r\n",26);
+	//HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)ptr,sizeof(ptr));
+	//assume we fail
+	*presult = 0;
+		//pdest = (unsigned char*)malloc(num_bits*4+8);
+	if (pdest == NULL) {	HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\npdest= 0 in read hex arr\r\n",32); }
+	chr_count = 0;
+	while(num_bits>0)	{		
+		//get char from string and convert to hex digit
+		while (*ptr=='(' || *ptr == ' ') ptr++;
+		chr = *ptr;		
+	//	HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nchar2hex\r\n",12);
+		c=char2hex(chr);
+	//	HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\ncheck ch\r\n",12);
+		if(c!=0xFF)
+		{
+		//	HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nchar cor\r\n",12);
+			//hexadecimal digit is correct, save it			
+			*pdest = c	;
+			pdest++;		
+			//remember that 4 bits we got
+			num_bits -= 4;			
+			ptr++;
+			chr_count++;
+			
+		}
+		else
+		{			
+			//char from string is not hexadecimal, but what is this?
+			if(chr==')')
+			{				
+				//end of hexadecimal array!
+				ptr++;
+				//return SUCCESS
+				*presult = 1;
+				*pcount=chr_count;
+				return ptr;
+			}
+			else
+			if(chr==0 || chr==0xd || chr==0xa)
+			{
+					
+				//end of string, we need to continue by reading next string from file
+				pstr = f_gets(wordBuf,MAX_STRING_LENGTH-1,f);
+				if(pstr==NULL)
+				{
+					//file read fails
+					return NULL;
+				}
+				len = strlen(pstr);
+				if(pstr[len-1]==0xA || pstr[len-1]==0xD)
+					pstr[len-1] = 0;
+				ptr = (unsigned char*)wordBuf;
+				ptr = ptr+1;
+			}
+			else
+			{
+				//unexpected char, error in syntax?
+				//printf("unexpected char %02X\n",chr);
+					//HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nunexpected char\r\n",25);
+				return NULL;
+			}
+		}
+		
 	}
 	//get char from string and convert to hex digit
 	chr = *ptr++;
 	if(chr==')')
 	{
 		//yes, we see final bracket
+		HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nend read hex arr2\r\n",21);
 		*presult = 1;
 		*pcount=chr_count;
 		return ptr;
 	}
 	return NULL;
 }
+
+
+
 
 //////////////////////////////////////////////////////////////////////////////
 // memory alloc/free functions
@@ -417,12 +534,14 @@ unsigned char* read_hex_array(unsigned char* ptr, unsigned char* pdst, unsigned 
 //size of arrays allocated will be defined during SVF strings parcing
 
 //sdr
-unsigned char* psdr_tdi_data   = NULL;
+// reducing the number of dynamic arrays
+
+//unsigned char* psdr_tdi_data   = NULL;
 unsigned char* psdr_tdo_data   = NULL;
 unsigned char* psdr_mask_data  = NULL;
 unsigned char* psdr_smask_data = NULL;
 
-unsigned char* psir_tdi_data   = NULL;
+//unsigned char* psir_tdi_data   = NULL;
 unsigned char* psir_tdo_data   = NULL;
 unsigned char* psir_mask_data  = NULL;
 unsigned char* psir_smask_data = NULL;
@@ -579,26 +698,27 @@ void RUNTESTproc(){
 //	int nextState = -1;
 
 	//get command parameters
-	unsigned int tck = 0;
+//	unsigned int
+float	tck = 0;
 	float sec = 0;
-
-	int n = sscanf(wordBuf,"RUNTEST %d TCK;",&tck);
-	if(n==1)
+	char wordBuf[4];
+	int n = sscanf(wordBuf,"RUNTEST %f %s;",&tck, wordBuf);
+	if(n==2)
 	{
+		if (strncmp(wordBuf, "TCK", 3) == 0){		
 		stateNavigate(TAP_STATE_RTI);
 		for (int i = 0; i < tck; i++){
 				 pulseTCK();	
 		};
 	}
+
 	else
-	{
-		n = sscanf(wordBuf,"RUNTEST %f SEC",&sec);
-		if(n == 1){			
+	if (strncmp(wordBuf, "SEC", 3) == 0){	{			
 			stateNavigate(TAP_STATE_RTI);
-			HAL_Delay(1000*sec);	
+			HAL_Delay(1000*tck);	
 		}		
 	}
-	
+}
 };
 void STATEproc(){
 	char temp[10];
@@ -669,24 +789,29 @@ char temp[6];
 /////////////////////////////////////////////////////////////////
 //sdr, sdi
 ////////////////////////////////////////////////////////////////
+
 void SDRproc(FIL* f)
 {
-	
-		int sz;
+	int sz;
+	int flag = 0; //0 - tdo, 1 = tdi, 2 = mask, 3 = smask
 	int has_tdi, has_tdo, has_mask, has_smask;
 	unsigned int r;
-	//unsigned char b;
+	unsigned char b;
 	unsigned char word[16];
-	//unsigned char* pdst;
+	unsigned char* pdst;
 	unsigned int num_bits = 0;
 	unsigned int num_bytes;
-	unsigned char* pdest, *temp_tdo, *temp_tdi, *temp_mask;
+	unsigned char* pdest=NULL, *temp_tdo=NULL, *temp_tdi=NULL, *temp_mask=NULL;
 	unsigned int* pdest_count;
-	unsigned char* ptr=(unsigned char*)wordBuf;
+	unsigned char* ptr = (unsigned char*)wordBuf;
+	//HAL_Delay(10);	CDC_Transmit_FS((uint8_t*)ptr,sizeof(wordBuf));
 //save pointers to 1st elements of arrays
-	temp_tdo = psdr_tdo_data; 
-	temp_tdi = psdr_tdi_data; 
-	temp_mask = psdr_mask_data;
+	temp_tdo = psir_tdo_data; 
+//	temp_tdi = psir_tdi_data; 
+	temp_mask = psir_mask_data;
+//HAL_Delay(10);	CDC_Transmit_FS((uint8_t*)wordBuf,sizeof(wordBuf));
+	
+	
 	//at begin of string we expect to see word "SDR"
 	//skip it	
 	ptr = ptr+4;
@@ -702,11 +827,11 @@ void SDRproc(FIL* f)
 	num_bytes = (num_bits+7)/8;
 	//each byte takes 2 chars in string, plus we reserve 8 additional bytes for safity
 	sz=num_bytes*2+8;
-	alloc_buffer(sz, psdr_tdi_data);
+//	alloc_buffer(sz, psdr_tdi_data);
 	alloc_buffer(sz, psdr_tdo_data);
 	alloc_buffer(sz, psdr_mask_data);
-	alloc_buffer(sz, psdr_smask_data);
-	
+	alloc_buffer(sz, psdr_smask_data);	
+
 sdr_data_size = sz; //current size of arrays
 sdr_tdi_sz = sz;
 sdr_tdo_sz = sz;
@@ -723,33 +848,39 @@ sdr_smask_sz = sz;
 	while(1)
 	{
 		//read word and skip it	
-		sscanf((const char*)ptr, "%s", word);
-		ptr = ptr + strlen((const char*)word) + 1;
+					sscanf((const char*)ptr, "%s", word);
+				//ptr = ptr + strlen((const char*)word) + 1;
+					
 		//analyze words
 		if(strncmp((char*)word,"TDI",3)==0)
 		{
-			has_tdi = 1;
-			pdest = psdr_tdi_data;
-			pdest_count  = &sdr_tdi_sz;
+			ptr = ptr + 4;
+			has_tdi = 1; flag = 1;
+		//	pdest = psdr_tdi_data;
+			pdest_count  = &sdr_tdi_sz;		
 		}
 		else
 		if(strncmp((char*)word,"TDO",3)==0)
 		{
-			has_tdo = 1;
+			ptr = ptr + 4;
+			has_tdo = 1; flag = 0;
 			pdest = psdr_tdo_data;
 			pdest_count  = &sdr_tdo_sz;
 		}
 		else
 		if(strncmp((char*)word,"MASK",4)==0)
+			
 		{
-			has_mask = 1;
+			ptr = ptr + 5;
+			has_mask = 1; flag = 2;
 			pdest = psdr_mask_data;
 			pdest_count  = &sdr_mask_sz;
 		}
 		else
 		if(strncmp((char*)word,"SMASK",5)==0)
 		{
-			has_smask = 1;
+			ptr = ptr + 6;
+			has_smask = 1; flag = 3;
 			pdest = psdr_smask_data;
 			pdest_count  = &sdr_smask_sz;
 		}
@@ -757,21 +888,19 @@ sdr_smask_sz = sz;
 		if(strcmp((char*)word,";")==0)
 		{
 			//end of string!
-			//send bitstream to jtag
-			if (has_tdi){
-				setTAPtoDRSHIFT();
-				sendArray(temp_tdi, num_bits);				
-			}
+			//tdi was already send
+			HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nend of string!  \r\n",21);
 			if (has_tdo){
-				readTDO(num_bits, has_mask,temp_tdo, temp_mask);
-				//read answer
-			};
-		//	sdr_nbits(num_bits,has_tdo,has_mask,has_smask);
+				readTDO(num_bits, has_mask, temp_tdo, temp_mask);	
+	HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nhas tdo     \r\n",21);				
+			};	
 			stateNavigate(ENDDRstate);
+				HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nfree buffers\r\n",21);
 			free_data_buffer(psdr_tdo_data);
-			free_data_buffer(psdr_tdi_data);
+		 // free_data_buffer(psdr_tdi_data);
 			free_data_buffer(psdr_mask_data);
-			free_data_buffer(psdr_smask_data);
+			free_data_buffer(pdest);
+				HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nend of free buffers\r\n",21);
 			return;
 		}
 		else
@@ -780,31 +909,36 @@ sdr_smask_sz = sz;
 			return ;
 		}
 //we finished word analize, now read the parameter		
-//parameter should be in parentheses
+//parameter should be in parentheses				
 	ptr = ptr+1;//skip '('
-		//now expect to read hexadecimal array of tdi data
-		ptr = read_hex_array(ptr,pdest,num_bits,f,pdest_count,&r);
+		//now expect to read hexadecimal array of  data
+	//pdest = (unsigned char*)malloc(sz);		
+		if (flag == 1)//tdi
+			ptr = read_hex_array_send(ptr,num_bits,f,0);
+		else 
+			ptr = read_hex_array_save(ptr, pdst, num_bits, f, pdest_count,&r); 
+		
 	}
-	return ;
+//	return ;
 }	
 	
-
 void SIRproc(FIL* f)
 {
-	int sz;
-	int has_tdi, has_tdo, has_mask, has_smask;
+	//HAL_Delay(10);CDC_Transmit_FS((uint8_t*)"\r\nSIRproc begin\r\n", 17); 
+	int sz, flag=0;
+	int has_tdi, has_tdo, has_mask;
 	unsigned int r;
-	unsigned char b;
 	unsigned char word[16];
-	unsigned char* pdst;
+//	unsigned char* pdst;
 	unsigned int num_bits = 0;
 	unsigned int num_bytes;
-	unsigned char* pdest, *temp_tdo, *temp_tdi, *temp_mask;
+	unsigned char* pdest=NULL, *temp_tdo=NULL, *temp_tdi=NULL, *temp_mask=NULL;
 	unsigned int* pdest_count;
-	unsigned char* ptr=(unsigned char*)wordBuf;
+	unsigned char* ptr = (unsigned char*)wordBuf;
+	
 //save pointers to 1st elements of arrays
 	temp_tdo = psir_tdo_data; 
-	temp_tdi = psir_tdi_data; 
+//	temp_tdi = psir_tdi_data; 
 	temp_mask = psir_mask_data;
 	//at begin of string we expect to see word "SDR"
 	//skip it	
@@ -821,11 +955,11 @@ void SIRproc(FIL* f)
 	num_bytes = (num_bits+7)/8;
 	//each byte takes 2 chars in string, plus we reserve 8 additional bytes for safity
 	sz=num_bytes*2+8;
-	alloc_buffer(sz, psir_tdi_data);
+//	alloc_buffer(sz, psir_tdi_data);
 	alloc_buffer(sz, psir_tdo_data);
 	alloc_buffer(sz, psir_mask_data);
 	alloc_buffer(sz, psir_smask_data);
-	
+
 sir_data_size = sz; //current size of arrays
 sir_tdi_sz = sz;
 sir_tdo_sz = sz;
@@ -837,60 +971,65 @@ sir_smask_sz = sz;
 	has_tdi=0;
 	has_tdo=0;
 	has_mask=0;
-	has_smask=0;
+//	has_smask=0;
 	
 	while(1)
 	{
 		//read word and skip it	
+		HAL_Delay(10); CDC_Transmit_FS((uint8_t*)"word:",sizeof(5));
 		sscanf((const char*)ptr, "%s", word);
-		ptr = ptr + strlen((const char*)word) + 1;
+		HAL_Delay(10); CDC_Transmit_FS((uint8_t*)word,sizeof(word));	
 		//analyze words
 		if(strncmp((char*)word,"TDI",3)==0)
 		{
+			ptr = ptr + 4;
 			has_tdi = 1;
-			pdest = psdr_tdi_data;
-			pdest_count  = &sdr_tdi_sz;
+			//pdest = psir_tdi_data;
+			flag = 1;
+			pdest_count  = &sir_tdi_sz;		
 		}
 		else
 		if(strncmp((char*)word,"TDO",3)==0)
 		{
+			ptr = ptr + 4;
 			has_tdo = 1;
-			pdest = psdr_tdo_data;
-			pdest_count  = &sdr_tdo_sz;
+			pdest = psir_tdo_data;
+			flag = 0;
+			pdest_count  = &sir_tdo_sz;
 		}
 		else
-		if(strncmp((char*)word,"MASK",4)==0)
+		if(strncmp((char*)word,"MASK",4)==0)			
 		{
+			ptr = ptr + 5;
 			has_mask = 1;
-			pdest = psdr_mask_data;
-			pdest_count  = &sdr_mask_sz;
+			flag = 2;
+			pdest = psir_mask_data;
+			pdest_count  = &sir_mask_sz;
 		}
 		else
 		if(strncmp((char*)word,"SMASK",5)==0)
 		{
-			has_smask = 1;
-			pdest = psdr_smask_data;
-			pdest_count  = &sdr_smask_sz;
+			ptr = ptr + 6;
+			//has_smask = 1;
+			flag = 3;
+			pdest = psir_smask_data;
+			pdest_count  = &sir_smask_sz;
 		}
 		else
 		if(strcmp((char*)word,";")==0)
 		{
 			//end of string!
 			//send bitstream to jtag
-			if (has_tdi){
-				setTAPtoIRSHIFT();
-				sendArray(temp_tdi, num_bits);				
-			}
+			
 			if (has_tdo){
 				readTDO(num_bits, has_mask, temp_tdo, temp_mask);
 				//read answer
-			};
-		//	sdr_nbits(num_bits,has_tdo,has_mask,has_smask);
+			};		
 			stateNavigate(ENDIRstate);
-				free_data_buffer(psir_tdo_data);
-			free_data_buffer(psir_tdi_data);
+			free_data_buffer(psir_tdo_data);
+			//free_data_buffer(psir_tdi_data);
 			free_data_buffer(psir_mask_data);
-			free_data_buffer(psir_smask_data);
+	free_data_buffer(pdest);
 			return;
 		}
 		else
@@ -899,12 +1038,18 @@ sir_smask_sz = sz;
 			return ;
 		}
 //we finished word analize, now read the parameter		
-//parameter should be in parentheses
+//parameter should be in parentheses		
 	ptr = ptr+1;//skip '('
 		//now expect to read hexadecimal array of tdi data
-		ptr = read_hex_array(ptr,pdest,num_bits,f,pdest_count,&r);
+		pdest = (unsigned char*)malloc(sz);		
+	  if (flag ==1)//tdi
+			ptr = read_hex_array_send(ptr, num_bits, f, 1);
+		else
+			ptr = read_hex_array_save(ptr,pdest,num_bits,f,pdest_count,&r);
+		//------------------------------------
+	
 	}
-	return ;
+//	return ;
 }	
 	
 
@@ -931,99 +1076,165 @@ sir_smask_sz = sz;
 //////////////////////////////////////////////////////////
 
 
-void processLine(char* str){	
-	HAL_Delay(10);
-	CDC_Transmit_FS((uint8_t*)"\r\n begin\r\n", 10); 
+void processLine(){	
 //	strcpy(wordBuf,str);
-	char temp;
+	
 	
 	//проверяем, не комментарий ли эта строка
-	if (wordBuf[0] == '/' || wordBuf[0] == '!')
-		return; //ничего не делаем со строкой, если она - комментарий
+	if (wordBuf[0] == '/' || wordBuf[0] == '!'){
+		HAL_Delay(10);CDC_Transmit_FS((uint8_t*)"\r\n comment \r\n", 10); 
+		return; 
+	}
+	//ничего не делаем со строкой, если она - комментарий
 	//если не комментарий
 	//определяем, какая команда записана в строке
-	if (strncmp(wordBuf, "ENDDR", 5)){
+	if (strncmp(wordBuf, "ENDDR", 5)==0){
 			HAL_Delay(10);CDC_Transmit_FS((uint8_t*)"\r\n ENDDR \r\n", 10); 
 		//вызываем функцию обработки
 		ENDDRproc();
 		//выходим
 		return;
 	}
-	if (strncmp(wordBuf, "ENDIR", 5)){
+	if (strncmp(wordBuf, "ENDIR", 5)==0){
 			HAL_Delay(10);CDC_Transmit_FS((uint8_t*)"\r\n ENDIR \r\n", 10); 
 		ENDIRproc();
 		return;
 	}
-	if (strncmp(wordBuf, "FREQUENCY",9)){
-			HAL_Delay(10);CDC_Transmit_FS((uint8_t*)"\r\n FREQ \r\n", 10); 
+	if (strncmp(wordBuf, "FREQUENCY",9)==0){
+		HAL_Delay(10);CDC_Transmit_FS((uint8_t*)"\r\n FREQ \r\n", 10); 
 		
 		FREQUENCYproc();
 	
 		return;
 	}
-	if (strncmp(wordBuf, "HDR", 3)){
-	
+	if (strncmp(wordBuf, "HDR", 3)==0){
+	HAL_Delay(10);CDC_Transmit_FS((uint8_t*)"\r\n HDR \r\n", 10); 
 		HDRproc();
 		return;
 	}
-	if (strncmp(wordBuf, "HIR",3)){
-			HAL_Delay(10);CDC_Transmit_FS((uint8_t*)"\r\n HIR \r\n", 10); 
+	if (strncmp(wordBuf, "HIR",3)==0){
+		HAL_Delay(10);CDC_Transmit_FS((uint8_t*)"\r\n HIR \r\n", 10); 
 		HIRproc();
 		return;
 	}
 	
-	if (strncmp(wordBuf, "PIO ", 4)){
+	if (strncmp(wordBuf, "PIO ", 4)==0){
 		PIOproc();
 		return;
 	}
-	if (strncmp(wordBuf, "PIOMAP", 6)){
+	if (strncmp(wordBuf, "PIOMAP", 6)==0){
 		PIOMAPproc();
 		return;
 	}
-	if (strncmp(wordBuf, "RUNTEST", 7)){
-			HAL_Delay(10); CDC_Transmit_FS((uint8_t*)"\r\n RUNTEST \r\n", 10); 
+	if (strncmp(wordBuf, "RUNTEST", 7)==0){
+		HAL_Delay(10); CDC_Transmit_FS((uint8_t*)"\r\n RUNTEST \r\n", 10); 
 		RUNTESTproc();
 		return;
 	}
-	if (strncmp(wordBuf, "SDR", 3)){
-			HAL_Delay(10); CDC_Transmit_FS((uint8_t*)"\r\n SDR \r\n", 10); 
+	if (strncmp(wordBuf, "SDR", 3)==0){
+		HAL_Delay(10); CDC_Transmit_FS((uint8_t*)"\r\n SDR \r\n", 10); 
 		SDRproc(&MyFile);
 		return;
 	}
-	if (strncmp(wordBuf, "SIR", 3)){
-			HAL_Delay(10);CDC_Transmit_FS((uint8_t*)"\r\n SIR \r\n", 10); 
+	if (strncmp(wordBuf, "SIR", 3)==0){
+	HAL_Delay(10);CDC_Transmit_FS((uint8_t*)"\r\nSIR pr    \r\n", 15); 
 		SIRproc(&MyFile);
 		return;
 	}
-	if (strncmp(wordBuf, "STATE", 5)){
+	if (strncmp(wordBuf, "STATE", 5)==0){
 			HAL_Delay(10);
 		CDC_Transmit_FS((uint8_t*)"\r\n STATE \r\n", 10); 
 		
 		STATEproc();
 		return;
 	}
-	if (strncmp(wordBuf, "TDR", 3)){
+	if (strncmp(wordBuf, "TDR", 3)==0){
 		TDRproc();
 		return;
 	}
-	if (strncmp(wordBuf, "TIR", 3)){
+	if (strncmp(wordBuf, "TIR", 3)==0){
 		TIRproc();
 		return;
 	}
-	if (strncmp(wordBuf, "TRST", 4)){
-		
+	if (strncmp(wordBuf, "TRST", 4)==0){
+		HAL_Delay(10);CDC_Transmit_FS((uint8_t*)"\r\n TRST \r\n", 10); 
 		TRSTproc();
 		return;
 	}
+	return; 
 }
+/*
+//void readLine(TCHAR* path){
+// char str[1];
+//	CDC_Transmit_FS((uint8_t*)"begin\r\n",15);
+//	// Переменная, в которую поочередно будут помещаться считываемые строки
+//  
+//   //Указатель, в который будет помещен адрес массива, в который считана 
+//   // строка, или NULL если достигнут коней файла или произошла ошибка
+//   char *estr;
+//	
+//		if(f_mount(&SDFatFs1,(TCHAR const*)USER_Path,0)!=FR_OK){
+//		// CDC_Transmit_FS((uint8_t*)"\r\nnot mounted\r\n",15);		 
+//		Error_Handler();
+//	}
+//	else{		
+//		if(f_open(&MyFile,path,FA_READ)!=FR_OK)
+//		{
+//			
+//			// CDC_Transmit_FS((uint8_t*)"\r\nnot opened\r\n",15);
+//			Error_Handler();
+//		}
+//		else //если файл открыт
+//		{			
+//		//Чтение (построчно) данных из файла в бесконечном цикле
+//   while (1)
+//   {
+//      // Чтение одной строки  из файла
+//		 memset (wordBuf, '\0', sizeof(wordBuf));
+//		 //free_data_buffer(wordBuf);
+//		 //alloc_buffer(MAX_STRING_LENGTH, wordBuf);
+//      estr = f_gets (wordBuf,sizeof(wordBuf),&MyFile);			
+//      //Проверка на конец файла или ошибку чтения
+//      if (estr == NULL)
+//      {
+//				//CDC_Transmit_FS((uint8_t*)"\r\nerr check\r\n",13);
+//         // Проверяем, что именно произошло: кончился файл
+//         // или это ошибка чтения
+//         if ( f_eof (&MyFile) != 0)
+//         {  
+//            //Если файл закончился,
+//            //выходим из бесконечного цикла
+//           		HAL_Delay(10); CDC_Transmit_FS((uint8_t*)"\r\nend of file\r\n",12);
+//            break;
+//         }
+//         else
+//         {
+//            //Если при чтении произошла ошибка, выводим сообщение 
+//            //об ошибке и выходим из бесконечного цикла
+//           //  CDC_Transmit_FS((uint8_t*)"\r\nerror\r\n",12);
+//            break;
+//         }
+//      }
+//      //Если файл не закончился, и не было ошибки чтения 
+//      //передаем в функцию обработки строки	
+//			HAL_Delay(10);
+//			CDC_Transmit_FS((uint8_t*)"\r\nprocess line:\r\n",17);
+//				HAL_Delay(10);
+//			CDC_Transmit_FS((uint8_t*)wordBuf,sizeof(wordBuf));	
 
+//			processLine(wordBuf);
+//   }	
+//			
+//			f_close(&MyFile);
+//	
+//		}
+//	}
+//}		
+*/
 void readLine(TCHAR* path){
- char str[1];
+ //char str[1];
 	//CDC_Transmit_FS((uint8_t*)"begin\r\n",15);
-	// Переменная, в которую поочередно будут помещаться считываемые строки
-  
-   //Указатель, в который будет помещен адрес массива, в который считана 
-   // строка, или NULL если достигнут коней файла или произошла ошибка
+	
    char *estr;
 	
 		if(f_mount(&SDFatFs1,(TCHAR const*)USER_Path,0)!=FR_OK){
@@ -1037,59 +1248,51 @@ void readLine(TCHAR* path){
 			// CDC_Transmit_FS((uint8_t*)"\r\nnot opened\r\n",15);
 			Error_Handler();
 		}
-		else //если файл открыт
+		else 
 		{			
-		//Чтение (построчно) данных из файла в бесконечном цикле
+		
    while (1)
-   {
-      // Чтение одной строки  из файла
+   { 
+		 	HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nwhile (1) begin\r\n",21);
 		  memset (wordBuf, '0', sizeof(wordBuf));
-      estr = f_gets (wordBuf,sizeof(wordBuf),&MyFile);			
-      //Проверка на конец файла или ошибку чтения
+		  HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nmemset (wordBuf, '0',\r\n",21);
+      estr = f_gets (wordBuf,sizeof(wordBuf),&MyFile);
+		//	HAL_Delay(10);  CDC_Transmit_FS((uint8_t*)wordBuf,sizeof(wordBuf));			 
+		 HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nf_gets (wordBuf,...\r\n",21);
+      //???????? ?? ????? ????? ??? ?????? ??????
       if (estr == NULL)
       {
 				//CDC_Transmit_FS((uint8_t*)"\r\nerr check\r\n",13);
-         // Проверяем, что именно произошло: кончился файл
-         // или это ошибка чтения
+         // ?????????, ??? ?????? ?????????: ???????? ????
+         // ??? ??? ?????? ??????
          if ( f_eof (&MyFile) != 0)
          {  
-            //Если файл закончился,
-            //выходим из бесконечного цикла
+            //???? ???? ??????????,
+            //??????? ?? ???????????? ?????
            		HAL_Delay(10); CDC_Transmit_FS((uint8_t*)"\r\nend of file\r\n",12);
             break;
          }
          else
          {
-            //Если при чтении произошла ошибка, выводим сообщение 
-            //об ошибке и выходим из бесконечного цикла
+            //???? ??? ?????? ????????? ??????, ??????? ????????? 
+            //?? ?????? ? ??????? ?? ???????????? ?????
            //  CDC_Transmit_FS((uint8_t*)"\r\nerror\r\n",12);
             break;
          }
       }
-      //Если файл не закончился, и не было ошибки чтения 
-      //передаем в функцию обработки строки	
+      //???? ???? ?? ??????????, ? ?? ???? ?????? ?????? 
+      //???????? ? ??????? ????????? ??????	
 			HAL_Delay(10);
-			CDC_Transmit_FS((uint8_t*)"\r\nprocess line pls\r\n",22);
-				HAL_Delay(10);
+			CDC_Transmit_FS((uint8_t*)"\r\nprocess line       \r\n",22);
 					
-	processLine(str);
+	processLine();
    }	
 			
 			f_close(&MyFile);
 	
 		}
 	}
-}		
-
-
-
-
-
-
-
-
-
-
+}
 
 
 

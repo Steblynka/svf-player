@@ -68,7 +68,7 @@ void NMI_Handler(void)
 void HardFault_Handler(void)
 {
   /* USER CODE BEGIN HardFault_IRQn 0 */
-
+	HAL_Delay(10);			CDC_Transmit_FS((uint8_t*)"\r\nhard fault lmao\r\n",21);
   /* USER CODE END HardFault_IRQn 0 */
   while (1)
   {
