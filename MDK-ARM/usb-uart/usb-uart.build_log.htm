@@ -28,24 +28,40 @@ Project File Date:  04/24/2018
 *** Using Compiler 'V5.06 update 5 (build 528)', folder: 'C:\Keil_v5\ARM\ARMCC\Bin'
 Build target 'usb-uart'
 compiling tap-ctrl.c...
-tap-ctrl.c(703): warning:  #177-D: variable "sec"  was declared but never referenced
+tap-ctrl.c(700): warning:  #177-D: variable "sec"  was declared but never referenced
   	float sec = 0;
-tap-ctrl.c(797): warning:  #550-D: variable "has_tdi"  was set but never used
+tap-ctrl.c(794): warning:  #550-D: variable "has_tdi"  was set but never used
   	int has_tdi, has_tdo, has_mask, has_smask;
-tap-ctrl.c(797): warning:  #550-D: variable "has_smask"  was set but never used
+tap-ctrl.c(794): warning:  #550-D: variable "has_smask"  was set but never used
   	int has_tdi, has_tdo, has_mask, has_smask;
-tap-ctrl.c(799): warning:  #177-D: variable "b"  was declared but never referenced
+tap-ctrl.c(796): warning:  #177-D: variable "b"  was declared but never referenced
   	unsigned char b;
-tap-ctrl.c(804): warning:  #177-D: variable "temp_tdi"  was declared but never referenced
+tap-ctrl.c(801): warning:  #177-D: variable "temp_tdi"  was declared but never referenced
   	unsigned char* pdest=NULL, *temp_tdo=NULL, *temp_tdi=NULL, *temp_mask=NULL;
-tap-ctrl.c(929): warning:  #550-D: variable "has_tdi"  was set but never used
+tap-ctrl.c(926): warning:  #550-D: variable "has_tdi"  was set but never used
   	int has_tdi, has_tdo, has_mask;
-tap-ctrl.c(935): warning:  #177-D: variable "temp_tdi"  was declared but never referenced
+tap-ctrl.c(932): warning:  #177-D: variable "temp_tdi"  was declared but never referenced
   	unsigned char* pdest=NULL, *temp_tdo=NULL, *temp_tdi=NULL, *temp_mask=NULL;
-tap-ctrl.c: 7 warnings, 0 errors
+tap-ctrl.c(1163): warning:  #111-D: statement is unreachable
+  	return;
+tap-ctrl.c(1060): warning:  #550-D: variable "flag"  was set but never used
+  	int flag = 0; //0 - tdo, 1 = tdi, 2 = mask, 3 = smask
+tap-ctrl.c(1061): warning:  #550-D: variable "has_tdo"  was set but never used
+  	int has_tdi, has_tdo, has_mask, has_smask;
+tap-ctrl.c(1061): warning:  #177-D: variable "has_smask"  was declared but never referenced
+  	int has_tdi, has_tdo, has_mask, has_smask;
+tap-ctrl.c(1062): warning:  #177-D: variable "temp"  was declared but never referenced
+  	int temp;
+tap-ctrl.c(1065): warning:  #177-D: variable "pdst"  was declared but never referenced
+  	unsigned char* pdst;
+tap-ctrl.c(1068): warning:  #550-D: variable "temp_tdo"  was set but never used
+  	unsigned char* pdest=NULL, *temp_tdo=NULL, *temp_tdi=NULL, *temp_mask=NULL;
+tap-ctrl.c(1278): warning:  #177-D: variable "str"  was declared but never referenced
+   char str[1];
+tap-ctrl.c: 15 warnings, 0 errors
 linking...
-Program Size: Code=29738 RO-data=2102 RW-data=504 ZI-data=18552  
-"usb-uart\usb-uart.axf" - 0 Error(s), 7 Warning(s).
+Program Size: Code=29950 RO-data=2102 RW-data=504 ZI-data=18552  
+"usb-uart\usb-uart.axf" - 0 Error(s), 15 Warning(s).
 
 <h2>Software Packages used:</h2>
 
@@ -68,7 +84,7 @@ Package Vendor: Keil
 <h2>Collection of Component Files used:</h2>
 
    * Component: ARM::CMSIS:CORE:5.0.1
-Build Time Elapsed:  00:00:07
+Build Time Elapsed:  00:00:03
 </pre>
 </body>
 </html>
